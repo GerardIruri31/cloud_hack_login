@@ -14,6 +14,9 @@ provider:
     TOKENS_TABLE: ${self:service}-tokens-${sls:stage}
     INCIDENTS_TABLE: ${self:custom.incidentTable}
 
+custom:
+  incidentTable: Incidents
+
 functions:
   crearUsuario:
     handler: crear_usuario.lambda_handler
@@ -94,5 +97,3 @@ resources:
           - AttributeName: uuid
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-
-
