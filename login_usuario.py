@@ -1,4 +1,5 @@
 
+
 import json
 import os
 import hashlib
@@ -21,30 +22,31 @@ def lambda_handler(event, context):
     try:
         body = json.loads(event.get("body") or "{}")
 
-        user_id = body.get("userId")
+        email = body.get("email")
         password = body.get("password")
 
-        if not user_id or not password:
+        if not email or not password:
             return {
                 "statusCode": 400,
                 "body": json.dumps({
-                    "error": "Missing required fields: userId, password"
+                    "error": "Missing required fields: email, password"
                 })
             }
 
-        # Buscar usuario por UserId (SCAN para simplificar)
+        # Buscar por Email (SCAN para laboratorio, GSI en producción)
         resp = users_table.scan(
-            FilterExpression=Attr("UserId").eq(user_id) & Attr("Status").eq("ACTIVE")
+            FilterExpression=Attr("Email").eq(email) & Attr("Status").eq("ACTIVE")
         )
 
         if not resp.get("Items"):
             return {
                 "statusCode": 403,
-                "body": json.dumps({"error": "Usuario no existe o inactivo"})
+                "body": json.dumps({"error": "Usuario no existe o está inactivo"})
             }
 
         user = resp["Items"][0]
 
+        # Comparar password hasheado
         password_hash = hash_password(password)
 
         if user.get("PasswordHash") != password_hash:
@@ -60,7 +62,8 @@ def lambda_handler(event, context):
 
         token_item = {
             "Token": token,
-            "UserId": user_id,
+            "Email": email,
+            "UserId": user.get("UserId"),
             "Role": user["Role"],
             "UUID": user["UUID"],
             "CreatedAt": now.isoformat(),
