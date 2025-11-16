@@ -12,6 +12,7 @@ provider:
   environment:
     USERS_TABLE: ${self:service}-users-${sls:stage}
     TOKENS_TABLE: ${self:service}-tokens-${sls:stage}
+    INCIDENTS_TABLE: ${self:custom.incidentTable}
 
 functions:
   crearUsuario:
@@ -42,6 +43,12 @@ functions:
           path: /login
           method: post
 
+  getIncidents:
+    handler: obtener_incidentes.lambda_handler
+    events:
+      - httpApi:
+          path: /incidents
+          method: get
 resources:
   Resources:
     UsersTable:
@@ -71,4 +78,21 @@ resources:
         KeySchema:
           - AttributeName: Token
             KeyType: HASH
+
+    IncidentesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.incidentTable}
+        AttributeDefinitions:
+          - AttributeName: tenant_id
+            AttributeType: S
+          - AttributeName: uuid
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tenant_id
+            KeyType: HASH
+          - AttributeName: uuid
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
 
