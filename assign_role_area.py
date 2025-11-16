@@ -1,3 +1,4 @@
+
 import json
 import os
 from datetime import datetime, timezone
@@ -95,12 +96,23 @@ def lambda_handler(event, context):
         new_role = body.get("newRole")
         new_area = body.get("newArea")
 
-        if not current_role or not uuid or not new_role or not new_area:
+        if not current_role or not uuid:
             return {
                 "statusCode": 400,
-                "body": json.dumps({
-                    "error": "Missing required fields: currentRole, uuid, newRole, newArea"
-                })
+                "body": json.dumps({"error": "Missing required fields: currentRole, uuid"})
+            }
+
+        # Normalizar: si vienen strings vacíos, tratarlos como None
+        if isinstance(new_role, str) and new_role.strip() == "":
+            new_role = None
+        if isinstance(new_area, str) and new_area.strip() == "":
+            new_area = None
+
+        # newRole y/o newArea: al menos uno debe venir
+        if new_role is None and new_area is None:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Debe enviar newRole, newArea o ambos"})
             }
 
         # 3. Traer usuario objetivo
@@ -112,25 +124,22 @@ def lambda_handler(event, context):
             }
 
         target_user = user_resp["Item"]
+        old_role = current_role
 
-        # 4. No permitir editar alumnos (COMMUNITY)
-        if target_user.get("Role") == "COMMUNITY":
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "No se puede cambiar el rol de usuarios COMMUNITY (alumnos)"})
-            }
-
-        # 5. Si solo cambia el área (nuevo rol = mismo rol)
-        if new_role == current_role:
-            users_table.update_item(
-                Key={"Role": current_role, "UUID": uuid},
-                UpdateExpression="SET #a = :newArea",
-                ExpressionAttributeNames={
-                    "#a": "Area"
-                },
-                ExpressionAttributeValues={
-                    ":newArea": new_area
+        # CASO A: SOLO CAMBIO DE ÁREA (sin newRole)
+        if new_role is None:
+            # Aquí newArea sí debe existir (ya validamos al inicio que viene al menos uno)
+            if new_area is None:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps({"error": "No hay cambios para aplicar"})
                 }
+
+            users_table.update_item(
+                Key={"Role": old_role, "UUID": uuid},
+                UpdateExpression="SET #a = :newArea",
+                ExpressionAttributeNames={"#a": "Area"},
+                ExpressionAttributeValues={":newArea": new_area}
             )
 
             target_user["Area"] = new_area
@@ -143,18 +152,43 @@ def lambda_handler(event, context):
                 })
             }
 
-        # 6. Si cambia también el rol (cambia la PK)
-        # Crear nuevo item con el nuevo rol y misma UUID
+        # CASO B: newRole viene y es igual al rol actual
+        if new_role == old_role:
+            # Si no hay newArea, realmente no hay nada que cambiar
+            if new_area is None:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps({"error": "No hay cambios para aplicar (mismo rol y sin nueva área)"})
+                }
+
+            users_table.update_item(
+                Key={"Role": old_role, "UUID": uuid},
+                UpdateExpression="SET #a = :newArea",
+                ExpressionAttributeNames={"#a": "Area"},
+                ExpressionAttributeValues={":newArea": new_area}
+            )
+
+            target_user["Area"] = new_area
+
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": "Área actualizada correctamente (rol sin cambios)",
+                    "user": target_user
+                })
+            }
+
+        # CASO C: CAMBIO DE ROL (newRole distinto al actual)
         new_item = dict(target_user)
         new_item["Role"] = new_role
-        new_item["Area"] = new_area
+        if new_area is not None:
+            new_item["Area"] = new_area
         new_item["UpdatedAt"] = datetime.now(timezone.utc).isoformat()
 
-        # Insertar nuevo
+        # Insertar nuevo usuario con el nuevo rol
         users_table.put_item(Item=new_item)
-
-        # Borrar el viejo
-        users_table.delete_item(Key={"Role": current_role, "UUID": uuid})
+        # Borrar el registro con el rol antiguo
+        users_table.delete_item(Key={"Role": old_role, "UUID": uuid})
 
         return {
             "statusCode": 200,
@@ -170,3 +204,4 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": json.dumps({"error": str(e)})
         }
+
