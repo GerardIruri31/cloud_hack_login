@@ -1,3 +1,4 @@
+
 import json
 import os
 from datetime import datetime
@@ -19,7 +20,7 @@ def lambda_handler(event, context):
 
         role = body.get("role")
         uuid = body.get("uuid")
-        password = body.get("password")  # NUEVO
+        password = body.get("password")
 
         if not role or not uuid or not password:
             return {
@@ -42,12 +43,16 @@ def lambda_handler(event, context):
             "Status": body.get("status", "ACTIVE"),
             "CreatedAt": datetime.utcnow().isoformat(),
             "ToList": body.get("toList", []),
-            "PasswordHash": password_hash,  # se guarda hasheada
+            "PasswordHash": password_hash,
         }
 
         table.put_item(
             Item=item,
-            ConditionExpression="attribute_not_exists(Role) AND attribute_not_exists(UUID)"
+            ConditionExpression="attribute_not_exists(#r) AND attribute_not_exists(#u)",
+            ExpressionAttributeNames={
+                "#r": "Role",
+                "#u": "UUID"
+            }
         )
 
         return {
@@ -65,3 +70,4 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": json.dumps({"error": str(e)})
         }
+
