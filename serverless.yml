@@ -8,6 +8,8 @@ provider:
   iam:
     role: arn:aws:iam::429284855730:role/LabRole
   stage: dev
+  httpApi:
+    cors: true
 
   environment:
     USERS_TABLE: ${self:service}-users-${sls:stage}
@@ -97,3 +99,4 @@ resources:
           - AttributeName: uuid
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
+
