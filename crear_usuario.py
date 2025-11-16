@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 import hashlib
+import uuid
 
 import boto3
 
@@ -19,22 +20,24 @@ def lambda_handler(event, context):
         body = json.loads(event.get("body") or "{}")
 
         role = body.get("role")
-        uuid = body.get("uuid")
         password = body.get("password")
 
-        if not role or not uuid or not password:
+        if not role or not password:
             return {
                 "statusCode": 400,
                 "body": json.dumps({
-                    "error": "Missing required fields: role, uuid, password"
+                    "error": "Missing required fields: role, password"
                 })
             }
+
+        # 🚀 GENERAR UUID AUTOMÁTICAMENTE
+        generated_uuid = str(uuid.uuid4())
 
         password_hash = hash_password(password)
 
         item = {
             "Role": role,
-            "UUID": uuid,
+            "UUID": generated_uuid,       # <-- UUID generado
             "UserId": body.get("userId"),
             "FullName": body.get("fullName"),
             "Email": body.get("email"),
@@ -60,7 +63,7 @@ def lambda_handler(event, context):
             "body": json.dumps({
                 "message": "Usuario creado correctamente",
                 "role": role,
-                "uuid": uuid
+                "uuid": generated_uuid    # <-- devolver el UUID generado
             })
         }
 
@@ -70,4 +73,5 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": json.dumps({"error": str(e)})
         }
+
 
