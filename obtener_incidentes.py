@@ -1,7 +1,6 @@
 
 
 
-
 import json
 import os
 from datetime import datetime, timezone
@@ -91,7 +90,7 @@ def lambda_handler(event, context):
             }
 
         role = user["Role"]
-        user_id = user.get("UserId")
+        user_id = user.get("UUID")
         user_area = user.get("Area")
 
         # Query params para filtros
@@ -219,3 +218,4 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": json.dumps({"error": str(e)})
         }
+
