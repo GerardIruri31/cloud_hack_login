@@ -1,0 +1,73 @@
+org: gerardiruri31utec
+service: incidentes-universidad
+
+provider:
+  name: aws
+  runtime: python3.13
+  timeout: 30
+  iam:
+    role: arn:aws:iam::429284855730:role/LabRole
+  stage: dev
+
+  environment:
+    USERS_TABLE: ${self:service}-users-${sls:stage}
+    TOKENS_TABLE: ${self:service}-tokens-${sls:stage}
+
+functions:
+  crearUsuario:
+    handler: crear_usuario.lambda_handler
+    events:
+      - httpApi:
+          path: /users
+          method: post
+
+  obtenerUsuario:
+    handler: obtener_usuario.lambda_handler
+    events:
+      - httpApi:
+          path: /users/{role}/{uuid}
+          method: get
+
+  validarTokenAcceso:
+    handler: validar_token_acceso.lambda_handler
+    events:
+      - httpApi:
+          path: /token/validate
+          method: post
+
+  loginUsuario:
+    handler: login_usuario.lambda_handler
+    events:
+      - httpApi:
+          path: /login
+          method: post
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-users-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: Role
+            AttributeType: S
+          - AttributeName: UUID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: Role
+            KeyType: HASH # PK
+          - AttributeName: UUID
+            KeyType: RANGE # SK
+
+    TokensTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-tokens-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: Token
+            AttributeType: S
+        KeySchema:
+          - AttributeName: Token
+            KeyType: HASH
