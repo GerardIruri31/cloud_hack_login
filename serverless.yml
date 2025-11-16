@@ -25,7 +25,7 @@ functions:
     handler: obtener_usuario.lambda_handler
     events:
       - httpApi:
-          path: /users/{role}/{uuid}
+          path: /users
           method: get
 
   validarTokenAcceso:
@@ -71,3 +71,4 @@ resources:
         KeySchema:
           - AttributeName: Token
             KeyType: HASH
+
